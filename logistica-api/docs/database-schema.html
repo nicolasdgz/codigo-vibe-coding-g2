@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>ER Diagram — Logística API</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d1117; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; user-select: none; }
+
+#toolbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 44px;
+  background: #161b22; border-bottom: 1px solid #21262d;
+  display: flex; align-items: center; padding: 0 16px; gap: 12px; z-index: 100;
+}
+#toolbar h1 { font-size: 13px; font-weight: 600; color: #f0f6fc; letter-spacing: 0.02em; }
+#toolbar .sep { width: 1px; height: 20px; background: #21262d; }
+#toolbar .zoom-label { font-size: 11px; color: #8b949e; min-width: 48px; text-align: center; }
+.btn {
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;
+  transition: background .15s;
+}
+.btn:hover { background: #30363d; }
+.legend { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #8b949e; }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+#viewport { position: fixed; top: 44px; left: 0; right: 0; bottom: 0; overflow: hidden; cursor: grab; }
+#viewport.dragging { cursor: grabbing; }
+#canvas { position: absolute; transform-origin: 0 0; }
+
+#svg-layer { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+.tbl {
+  position: absolute;
+  width: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #30363d;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+  transition: box-shadow .2s, border-color .2s;
+}
+.tbl:hover { border-color: #58a6ff; box-shadow: 0 4px 32px rgba(88,166,255,.15); }
+
+.tbl-head {
+  padding: 0 12px;
+  height: 36px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.03em;
+  font-family: 'Consolas', 'Fira Code', monospace;
+}
+.tbl-head .ico { font-size: 13px; }
+.tbl-head .name { flex: 1; }
+.tbl-head .badge {
+  font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.08em; opacity: .85;
+}
+
+.tbl-body { background: #161b22; }
+
+.col-row {
+  display: flex; align-items: center;
+  height: 22px; padding: 0 10px;
+  border-top: 1px solid #21262d;
+  font-size: 11px;
+}
+.col-row:hover { background: #1c2128; }
+.col-icon { width: 14px; font-size: 10px; flex-shrink: 0; margin-right: 4px; }
+.col-name {
+  flex: 1; color: #e6edf3;
+  font-family: 'Consolas', 'Fira Code', monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.col-name.pk { color: #ffa657; font-weight: 700; }
+.col-name.fk { color: #79c0ff; }
+.col-name.uk { color: #d2a8ff; }
+.col-type {
+  color: #484f58; font-size: 10px;
+  font-family: 'Consolas', monospace;
+  white-space: nowrap; margin-left: 6px;
+}
+.col-null { color: #3d444d; font-size: 9px; margin-left: 4px; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Logística API — ER Diagram</h1>
+  <div class="sep"></div>
+  <button class="btn" onclick="zoom(0.15)">＋</button>
+  <span class="zoom-label" id="zlabel">100%</span>
+  <button class="btn" onclick="zoom(-0.15)">－</button>
+  <button class="btn" onclick="reset()">Reset</button>
+  <div class="sep"></div>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#ffa657"></div> PK</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#79c0ff"></div> FK</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#d2a8ff"></div> Unique</div>
+    <div class="leg-item" style="color:#3fb950">— 1:1</div>
+    <div class="leg-item" style="color:#58a6ff">— 1:N</div>
+  </div>
+</div>
+
+<div id="viewport">
+  <div id="canvas">
+    <svg id="svg-layer"></svg>
+  </div>
+</div>
+
+<script>
+const TW = 260, RH = 22, HH = 36;
+
+const TABLES = [
+  { id:'auth_user', label:'auth_user', badge:'Django', x:50, y:80,
+    hc:'#1a2f1a', tc:'#3fb950', bc:'#26a641',
+    cols:[
+      {n:'id',         t:'INTEGER',     pk:true},
+      {n:'username',   t:'VARCHAR(150)', uk:true},
+      {n:'email',      t:'VARCHAR(254)'},
+      {n:'first_name', t:'VARCHAR(150)'},
+      {n:'last_name',  t:'VARCHAR(150)'},
+      {n:'is_staff',   t:'BOOLEAN'},
+      {n:'is_active',  t:'BOOLEAN'},
+    ]},
+  { id:'drivers', label:'drivers', x:50, y:330,
+    hc:'#0d1f38', tc:'#79c0ff', bc:'#388bfd',
+    cols:[
+      {n:'id',             t:'INTEGER',    pk:true},
+      {n:'user_id',        t:'INTEGER',    fk:'auth_user.id'},
+      {n:'license_number', t:'VARCHAR(50)', uk:true},
+      {n:'license_expiry', t:'DATE'},
+      {n:'phone',          t:'VARCHAR(20)'},
+      {n:'is_available',   t:'BOOLEAN'},
+      {n:'created_at',     t:'DATETIME'},
+      {n:'updated_at',     t:'DATETIME'},
+    ]},
+  { id:'transport', label:'transport', x:50, y:600,
+    hc:'#1a1438', tc:'#d2a8ff', bc:'#8957e5',
+    cols:[
+      {n:'id',             t:'INTEGER',   pk:true},
+      {n:'plate_number',   t:'VARCHAR(20)', uk:true},
+      {n:'vehicle_type',   t:'VARCHAR(20)'},
+      {n:'brand',          t:'VARCHAR(100)'},
+      {n:'model',          t:'VARCHAR(100)'},
+      {n:'year',           t:'INTEGER'},
+      {n:'capacity_kg',    t:'DECIMAL(8,2)'},
+      {n:'capacity_units', t:'INTEGER'},
+      {n:'driver_id',      t:'INTEGER',   fk:'drivers.id', nl:true},
+      {n:'is_active',      t:'BOOLEAN'},
+      {n:'created_at',     t:'DATETIME'},
+      {n:'updated_at',     t:'DATETIME'},
+    ]},
+  { id:'routes', label:'routes', x:390, y:310,
+    hc:'#0d2626', tc:'#39d353', bc:'#196c2e',
+    cols:[
+      {n:'id',                  t:'INTEGER',    pk:true},
+      {n:'name',                t:'VARCHAR(255)'},
+      {n:'origin_warehouse_id', t:'INTEGER',    fk:'warehouses.id'},
+      {n:'transport_id',        t:'INTEGER',    fk:'transport.id'},
+      {n:'status',              t:'VARCHAR(20)'},
+      {n:'scheduled_date',      t:'DATE'},
+      {n:'created_at',          t:'DATETIME'},
+      {n:'updated_at',          t:'DATETIME'},
+    ]},
+  { id:'route_stops', label:'route_stops', x:390, y:600,
+    hc:'#0d2626', tc:'#39d353', bc:'#196c2e',
+    cols:[
+      {n:'id',                t:'INTEGER',   pk:true},
+      {n:'route_id',          t:'INTEGER',   fk:'routes.id'},
+      {n:'order',             t:'INTEGER'},
+      {n:'address',           t:'TEXT'},
+      {n:'city',              t:'VARCHAR(100)'},
+      {n:'estimated_arrival', t:'DATETIME',  nl:true},
+      {n:'actual_arrival',    t:'DATETIME',  nl:true},
+    ]},
+  { id:'warehouses', label:'warehouses', x:730, y:80,
+    hc:'#1f2d0d', tc:'#7ee787', bc:'#2ea043',
+    cols:[
+      {n:'id',        t:'INTEGER',    pk:true},
+      {n:'name',      t:'VARCHAR(255)'},
+      {n:'address',   t:'TEXT'},
+      {n:'city',      t:'VARCHAR(100)'},
+      {n:'country',   t:'VARCHAR(100)'},
+      {n:'latitude',  t:'DECIMAL(9,6)', nl:true},
+      {n:'longitude', t:'DECIMAL(9,6)', nl:true},
+      {n:'capacity',  t:'INTEGER'},
+      {n:'is_active', t:'BOOLEAN'},
+      {n:'created_at',t:'DATETIME'},
+      {n:'updated_at',t:'DATETIME'},
+    ]},
+  { id:'suppliers', label:'suppliers', x:730, y:400,
+    hc:'#2d1f0d', tc:'#ffa657', bc:'#d29922',
+    cols:[
+      {n:'id',           t:'INTEGER',    pk:true},
+      {n:'name',         t:'VARCHAR(255)'},
+      {n:'email',        t:'VARCHAR(254)'},
+      {n:'phone',        t:'VARCHAR(20)'},
+      {n:'address',      t:'TEXT'},
+      {n:'tax_id',       t:'VARCHAR(50)', uk:true},
+      {n:'contact_name', t:'VARCHAR(255)'},
+      {n:'is_active',    t:'BOOLEAN'},
+      {n:'created_at',   t:'DATETIME'},
+      {n:'updated_at',   t:'DATETIME'},
+    ]},
+  { id:'products', label:'products', x:730, y:680,
+    hc:'#0d2626', tc:'#56d364', bc:'#238636',
+    cols:[
+      {n:'id',          t:'INTEGER',    pk:true},
+      {n:'name',        t:'VARCHAR(255)'},
+      {n:'description', t:'TEXT',       nl:true},
+      {n:'sku',         t:'VARCHAR(100)', uk:true},
+      {n:'weight_kg',   t:'DECIMAL(8,2)'},
+      {n:'dimensions',  t:'VARCHAR(50)', nl:true},
+      {n:'unit_price',  t:'DECIMAL(10,2)'},
+      {n:'stock',       t:'INTEGER'},
+      {n:'supplier_id', t:'INTEGER',    fk:'suppliers.id'},
+      {n:'warehouse_id',t:'INTEGER',    fk:'warehouses.id'},
+      {n:'is_active',   t:'BOOLEAN'},
+      {n:'created_at',  t:'DATETIME'},
+      {n:'updated_at',  t:'DATETIME'},
+    ]},
+  { id:'customers', label:'customers', x:1070, y:80,
+    hc:'#2d0d0d', tc:'#ff7b72', bc:'#da3633',
+    cols:[
+      {n:'id',            t:'INTEGER',    pk:true},
+      {n:'name',          t:'VARCHAR(255)'},
+      {n:'customer_type', t:'VARCHAR(10)'},
+      {n:'email',         t:'VARCHAR(254)', uk:true},
+      {n:'phone',         t:'VARCHAR(20)'},
+      {n:'address',       t:'TEXT'},
+      {n:'tax_id',        t:'VARCHAR(50)', uk:true, nl:true},
+      {n:'is_active',     t:'BOOLEAN'},
+      {n:'created_at',    t:'DATETIME'},
+      {n:'updated_at',    t:'DATETIME'},
+    ]},
+  { id:'shipments', label:'shipments', x:1070, y:370,
+    hc:'#2d0d0d', tc:'#f78166', bc:'#da3633',
+    cols:[
+      {n:'id',                   t:'INTEGER',    pk:true},
+      {n:'tracking_number',      t:'VARCHAR(50)', uk:true},
+      {n:'customer_id',          t:'INTEGER',    fk:'customers.id'},
+      {n:'origin_warehouse_id',  t:'INTEGER',    fk:'warehouses.id'},
+      {n:'destination_address',  t:'TEXT'},
+      {n:'destination_city',     t:'VARCHAR(100)'},
+      {n:'destination_country',  t:'VARCHAR(100)'},
+      {n:'status',               t:'VARCHAR(20)'},
+      {n:'route_id',             t:'INTEGER',    fk:'routes.id', nl:true},
+      {n:'estimated_delivery',   t:'DATE',       nl:true},
+      {n:'actual_delivery',      t:'DATETIME',   nl:true},
+      {n:'total_weight_kg',      t:'DECIMAL(8,2)'},
+      {n:'calculated_cost',      t:'DECIMAL(10,2)'},
+      {n:'notes',                t:'TEXT',       nl:true},
+      {n:'created_by_id',        t:'INTEGER',    fk:'auth_user.id'},
+      {n:'created_at',           t:'DATETIME'},
+      {n:'updated_at',           t:'DATETIME'},
+    ]},
+  { id:'shipment_items', label:'shipment_items', x:1410, y:370,
+    hc:'#2d0d1a', tc:'#ffa8a8', bc:'#b62324',
+    cols:[
+      {n:'id',          t:'INTEGER',    pk:true},
+      {n:'shipment_id', t:'INTEGER',    fk:'shipments.id'},
+      {n:'product_id',  t:'INTEGER',    fk:'products.id'},
+      {n:'quantity',    t:'INTEGER'},
+      {n:'unit_price',  t:'DECIMAL(10,2)'},
+      {n:'subtotal',    t:'DECIMAL(10,2)'},
+    ]},
+];
+
+// from = FK table (crow's foot), to = PK table (one mark)
+// fromSide/toSide: 'L' or 'R' (which side of the table)
+const RELS = [
+  // same-column arcs (both R, arc outward)
+  { from:'drivers',         fromCol:'user_id',             fromS:'R',
+    to:'auth_user',         toCol:'id',                    toS:'R',   card:'1:1', color:'#3fb950' },
+  { from:'transport',       fromCol:'driver_id',           fromS:'R',
+    to:'drivers',           toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+  { from:'route_stops',     fromCol:'route_id',            fromS:'R',
+    to:'routes',            toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+  { from:'products',        fromCol:'warehouse_id',        fromS:'R',
+    to:'warehouses',        toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff', arcW:100 },
+  { from:'products',        fromCol:'supplier_id',         fromS:'R',
+    to:'suppliers',         toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff', arcW:60  },
+  { from:'shipments',       fromCol:'customer_id',         fromS:'R',
+    to:'customers',         toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+
+  // cross-column L→R or R→L
+  { from:'routes',          fromCol:'transport_id',        fromS:'L',
+    to:'transport',         toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+  { from:'routes',          fromCol:'origin_warehouse_id', fromS:'R',
+    to:'warehouses',        toCol:'id',                    toS:'L',   card:'1:N', color:'#58a6ff' },
+  { from:'shipments',       fromCol:'origin_warehouse_id', fromS:'L',
+    to:'warehouses',        toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+  { from:'shipments',       fromCol:'route_id',            fromS:'L',
+    to:'routes',            toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff', nl:true },
+  { from:'shipment_items',  fromCol:'shipment_id',         fromS:'L',
+    to:'shipments',         toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+  { from:'shipment_items',  fromCol:'product_id',          fromS:'L',
+    to:'products',          toCol:'id',                    toS:'R',   card:'1:N', color:'#58a6ff' },
+
+  // long arc (auth_user → shipments, routed via top)
+  { from:'shipments',       fromCol:'created_by_id',       fromS:'L',
+    to:'auth_user',         toCol:'id',                    toS:'R',   card:'1:N', color:'#3fb950', top:true },
+];
+
+// ── helpers ──────────────────────────────────────────────
+function colY(tbl, colName) {
+  const i = tbl.cols.findIndex(c => c.n === colName);
+  return tbl.y + HH + i * RH + RH / 2;
+}
+function edgeX(tbl, side) { return side === 'R' ? tbl.x + TW : tbl.x; }
+
+function makePath(x1, y1, s1, x2, y2, s2, arcW, isTop) {
+  const ex1 = s1 === 'R' ? x1 + TW : x1;
+  const ex2 = s2 === 'R' ? x2 + TW : x2;
+
+  if (isTop) {
+    // arc over the top of the diagram
+    const topY = Math.min(y1, y2) - 120;
+    return `M ${ex1} ${y1} C ${ex1} ${topY} ${ex2} ${topY} ${ex2} ${y2}`;
+  }
+
+  if (s1 === s2) {
+    // both same side: arc outward
+    const w = (arcW || 70) * (s1 === 'R' ? 1 : -1);
+    return `M ${ex1} ${y1} C ${ex1 + w} ${y1} ${ex2 + w} ${y2} ${ex2} ${y2}`;
+  }
+
+  // different sides: horizontal bezier
+  const dx = Math.abs(ex2 - ex1);
+  const cp = Math.max(dx * 0.45, 50);
+  const cx1 = s1 === 'R' ? ex1 + cp : ex1 - cp;
+  const cx2 = s2 === 'R' ? ex2 + cp : ex2 - cp;
+  return `M ${ex1} ${y1} C ${cx1} ${y1} ${cx2} ${y2} ${ex2} ${y2}`;
+}
+
+// crow's foot at point (x,y), exiting in direction dir (-1=left, +1=right)
+function crowsFoot(x, y, dir) {
+  const d = dir * 12, s = 7;
+  return [
+    `M ${x} ${y} L ${x + d} ${y}`,
+    `M ${x} ${y} L ${x + dir * 8} ${y - s}`,
+    `M ${x} ${y} L ${x + dir * 8} ${y + s}`,
+  ].join(' ');
+}
+
+// one mark at (x,y), entering from direction dir (-1=from left, +1=from right)
+function oneMark(x, y, dir) {
+  const d1 = x + dir * 7, d2 = x + dir * 13;
+  return `M ${d1} ${y - 6} L ${d1} ${y + 6} M ${d2} ${y - 6} L ${d2} ${y + 6}`;
+}
+
+// ── render ────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const svg    = document.getElementById('svg-layer');
+const CANVAS_W = 1720, CANVAS_H = 1100;
+
+svg.setAttribute('width', CANVAS_W);
+svg.setAttribute('height', CANVAS_H);
+svg.setAttribute('viewBox', `0 0 ${CANVAS_W} ${CANVAS_H}`);
+
+// draw tables
+TABLES.forEach(t => {
+  const div = document.createElement('div');
+  div.className = 'tbl';
+  div.style.cssText = `left:${t.x}px; top:${t.y}px;`;
+
+  const head = document.createElement('div');
+  head.className = 'tbl-head';
+  head.style.cssText = `background:${t.hc}; color:${t.tc}; border-bottom: 1px solid ${t.bc}33;`;
+  head.innerHTML = `<span class="ico">▤</span><span class="name">${t.label}</span>${t.badge ? `<span class="badge" style="background:${t.bc}22;color:${t.tc}">${t.badge}</span>` : ''}`;
+  div.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'tbl-body';
+  t.cols.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'col-row';
+    const cls = c.pk ? 'pk' : c.fk ? 'fk' : c.uk ? 'uk' : '';
+    const icon = c.pk ? '🔑' : c.fk ? '⬡' : c.uk ? '◆' : '';
+    row.innerHTML = `<span class="col-icon">${icon}</span><span class="col-name ${cls}">${c.n}</span><span class="col-type">${c.t}</span>${c.nl ? '<span class="col-null">?</span>' : ''}`;
+    body.appendChild(row);
+  });
+  div.appendChild(body);
+  canvas.appendChild(div);
+});
+
+// draw relationships
+const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+['rel-blue','rel-green'].forEach(id => {
+  const m = document.createElementNS('http://www.w3.org/2000/svg','marker');
+  m.setAttribute('id', id);
+  m.setAttribute('viewBox','0 0 1 1');
+  m.setAttribute('markerWidth','1'); m.setAttribute('markerHeight','1');
+  defs.appendChild(m);
+});
+svg.appendChild(defs);
+
+RELS.forEach(r => {
+  const ft = TABLES.find(t => t.id === r.from);
+  const tt = TABLES.find(t => t.id === r.to);
+  const fy = colY(ft, r.fromCol);
+  const ty = colY(tt, r.toCol);
+
+  const pathD = makePath(ft.x, fy, r.fromS, tt.x, ty, r.toS, r.arcW, r.top);
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', pathD);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke', r.color);
+  path.setAttribute('stroke-width', r.top || r.nl ? '1' : '1.5');
+  path.setAttribute('stroke-opacity', r.top || r.nl ? '0.4' : '0.75');
+  if (r.top || r.nl) path.setAttribute('stroke-dasharray','4 3');
+  svg.appendChild(path);
+
+  // crow's foot at FK end (from)
+  const fx = r.fromS === 'R' ? ft.x + TW : ft.x;
+  const fdir = r.fromS === 'R' ? 1 : -1;
+  const cf = document.createElementNS('http://www.w3.org/2000/svg','path');
+  cf.setAttribute('d', crowsFoot(fx, fy, fdir));
+  cf.setAttribute('fill','none');
+  cf.setAttribute('stroke', r.color);
+  cf.setAttribute('stroke-width','1.5');
+  cf.setAttribute('stroke-opacity', r.top || r.nl ? '0.4' : '0.9');
+  svg.appendChild(cf);
+
+  // one mark at PK end (to) — skip for dashed
+  if (!r.top && !r.nl) {
+    const tx2 = r.toS === 'R' ? tt.x + TW : tt.x;
+    const tdir = r.toS === 'R' ? 1 : -1;
+    const om = document.createElementNS('http://www.w3.org/2000/svg','path');
+    om.setAttribute('d', oneMark(tx2, ty, tdir));
+    om.setAttribute('fill','none');
+    om.setAttribute('stroke', r.color);
+    om.setAttribute('stroke-width','1.5');
+    om.setAttribute('stroke-opacity','0.9');
+    svg.appendChild(om);
+  }
+});
+
+// ── pan & zoom ────────────────────────────────────────────
+let scale = 1, tx = 40, ty = 20;
+let dragging = false, lastX = 0, lastY = 0;
+const vp = document.getElementById('viewport');
+const zlabel = document.getElementById('zlabel');
+
+function applyTransform() {
+  canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+  zlabel.textContent = Math.round(scale * 100) + '%';
+}
+
+function zoom(delta) {
+  const prev = scale;
+  scale = Math.min(2, Math.max(0.25, scale + delta));
+  const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2;
+  tx = cx - (cx - tx) * (scale / prev);
+  ty = cy - (cy - ty) * (scale / prev);
+  applyTransform();
+}
+
+function reset() { scale = 0.78; tx = 30; ty = 20; applyTransform(); }
+
+vp.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = vp.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const prev = scale;
+  scale = Math.min(2, Math.max(0.25, scale - e.deltaY * 0.001));
+  tx = mx - (mx - tx) * (scale / prev);
+  ty = my - (my - ty) * (scale / prev);
+  applyTransform();
+}, { passive: false });
+
+vp.addEventListener('mousedown', e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  vp.classList.add('dragging');
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  tx += e.clientX - lastX; ty += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { dragging = false; vp.classList.remove('dragging'); });
+
+reset();
+</script>
+</body>
+</html>

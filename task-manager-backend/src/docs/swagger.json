@@ -1,0 +1,280 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Task Manager API",
+    "version": "1.0.0",
+    "description": "REST API for managing tasks"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/users/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": ["Users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterUser" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "409": {
+            "description": "Email already exists",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/login": {
+      "post": {
+        "summary": "Login and get token",
+        "tags": ["Users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginUser" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token returned",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthToken" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "summary": "List all tasks",
+        "tags": ["Tasks"],
+        "responses": {
+          "200": {
+            "description": "Array of tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Task" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a task",
+        "tags": ["Tasks"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTask" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Task" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{id}": {
+      "get": {
+        "summary": "Get task by ID",
+        "tags": ["Tasks"],
+        "parameters": [
+          { "$ref": "#/components/parameters/TaskId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Task" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "summary": "Update a task",
+        "tags": ["Tasks"],
+        "parameters": [
+          { "$ref": "#/components/parameters/TaskId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTask" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Task" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a task",
+        "tags": ["Tasks"],
+        "parameters": [
+          { "$ref": "#/components/parameters/TaskId" }
+        ],
+        "responses": {
+          "204": { "description": "Task deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "550e8400-e29b-41d4-a716-446655440000" },
+          "name": { "type": "string", "example": "Juan" },
+          "lastname": { "type": "string", "example": "Pérez" },
+          "email": { "type": "string", "format": "email", "example": "juan@example.com" },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-05-10T12:00:00.000Z" }
+        }
+      },
+      "RegisterUser": {
+        "type": "object",
+        "required": ["name", "lastname", "email", "password"],
+        "properties": {
+          "name": { "type": "string", "example": "Juan" },
+          "lastname": { "type": "string", "example": "Pérez" },
+          "email": { "type": "string", "format": "email", "example": "juan@example.com" },
+          "password": { "type": "string", "format": "password", "example": "secret123" }
+        }
+      },
+      "LoginUser": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "juan@example.com" },
+          "password": { "type": "string", "format": "password", "example": "secret123" }
+        }
+      },
+      "AuthToken": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "format": "uuid", "example": "550e8400-e29b-41d4-a716-446655440000" }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "550e8400-e29b-41d4-a716-446655440000" },
+          "title": { "type": "string", "example": "Fix login bug" },
+          "description": { "type": "string", "example": "Users can't log in with Google" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in-progress", "done"],
+            "example": "pending"
+          },
+          "userId": { "type": "string", "format": "uuid", "nullable": true, "example": null },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-05-10T12:00:00.000Z" }
+        }
+      },
+      "CreateTask": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string", "example": "Fix login bug" },
+          "description": { "type": "string", "example": "Users can't log in with Google" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in-progress", "done"],
+            "default": "pending"
+          }
+        }
+      },
+      "UpdateTask": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "example": "Fix login bug" },
+          "description": { "type": "string", "example": "Users can't log in with Google" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in-progress", "done"]
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "Email already exists" }
+        }
+      }
+    },
+    "parameters": {
+      "TaskId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" },
+        "example": "550e8400-e29b-41d4-a716-446655440000"
+      }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "Task not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    }
+  }
+}

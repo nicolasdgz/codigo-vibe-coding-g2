@@ -1,0 +1,61 @@
+# Environment variables — NEVER commit
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+
+# Build output
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Databases
+*.sqlite3
+*.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage/
+*.lcov
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Vite / frontend
+*.local
+
+# Prisma — generated client is reproducible, but keep schema & migrations
+node_modules/.prisma/
+
+# Python virtual envs
+venv/
+.venv/
+env/
