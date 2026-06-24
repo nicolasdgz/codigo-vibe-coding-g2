@@ -11,7 +11,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from .models import Route, RouteStop
 from .serializers import RouteReadSerializer, RouteWriteSerializer, RouteStopSerializer
-from .permissions import IsAdminGroup
+from apps.authentication.permissions import StrictModelPermissions
 
 _STOP_ID_PARAM = OpenApiParameter('stop_id', OpenApiTypes.INT, OpenApiParameter.PATH)
 
@@ -20,7 +20,7 @@ class RouteViewSet(ModelViewSet):
     queryset = Route.objects.select_related(
         'origin_warehouse', 'transport',
     ).prefetch_related('stops').all()
-    permission_classes = [IsAuthenticated, IsAdminGroup]
+    permission_classes = [IsAuthenticated, StrictModelPermissions]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['status', 'transport', 'origin_warehouse']
     search_fields = ['name']

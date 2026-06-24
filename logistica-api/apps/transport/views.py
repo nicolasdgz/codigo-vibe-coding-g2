@@ -5,12 +5,12 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 
 from .models import Transport
 from .serializers import TransportReadSerializer, TransportWriteSerializer
-from .permissions import IsAdminGroup
+from apps.authentication.permissions import StrictModelPermissions
 
 
 class TransportViewSet(ModelViewSet):
     queryset = Transport.objects.select_related('driver', 'driver__user').all()
-    permission_classes = [IsAuthenticated, IsAdminGroup]
+    permission_classes = [IsAuthenticated, StrictModelPermissions]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['vehicle_type', 'is_active', 'driver']
     search_fields = ['plate_number', 'brand', 'model']

@@ -5,12 +5,12 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 
 from .models import Driver
 from .serializers import DriverReadSerializer, DriverWriteSerializer
-from .permissions import IsAdminGroup
+from apps.authentication.permissions import StrictModelPermissions
 
 
 class DriverViewSet(ModelViewSet):
     queryset = Driver.objects.select_related('user').all()
-    permission_classes = [IsAuthenticated, IsAdminGroup]
+    permission_classes = [IsAuthenticated, StrictModelPermissions]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['is_available']
     search_fields = ['license_number', 'user__username', 'user__first_name', 'user__last_name']

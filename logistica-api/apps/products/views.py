@@ -5,12 +5,12 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 
 from .models import Product
 from .serializers import ProductReadSerializer, ProductWriteSerializer
-from .permissions import IsAdminOrWarehouseStaff
+from apps.authentication.permissions import StrictModelPermissions
 
 
 class ProductViewSet(ModelViewSet):
     queryset = Product.objects.select_related('supplier', 'warehouse').all()
-    permission_classes = [IsAuthenticated, IsAdminOrWarehouseStaff]
+    permission_classes = [IsAuthenticated, StrictModelPermissions]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['supplier', 'warehouse', 'is_active']
     search_fields = ['name', 'sku', 'description']

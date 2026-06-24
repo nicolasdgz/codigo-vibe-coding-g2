@@ -14,7 +14,7 @@ from .serializers import (
     ShipmentReadSerializer, ShipmentWriteSerializer,
     ShipmentItemReadSerializer, ShipmentItemWriteSerializer,
 )
-from .permissions import IsAdminGroup
+from apps.authentication.permissions import StrictModelPermissions
 
 _ITEM_ID_PARAM = OpenApiParameter('item_id', OpenApiTypes.INT, OpenApiParameter.PATH)
 
@@ -23,7 +23,7 @@ class ShipmentViewSet(ModelViewSet):
     queryset = Shipment.objects.select_related(
         'customer', 'origin_warehouse', 'route', 'created_by',
     ).prefetch_related('items', 'items__product').all()
-    permission_classes = [IsAuthenticated, IsAdminGroup]
+    permission_classes = [IsAuthenticated, StrictModelPermissions]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['status', 'customer', 'origin_warehouse', 'route']
     search_fields = ['tracking_number', 'destination_city', 'destination_country']
